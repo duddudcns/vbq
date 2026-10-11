@@ -9,6 +9,7 @@ import {
   rootHash, pipeName, readState, readyFile, listStates,
   isPidAlive, removeState, touchActivity, logFile, STATE_DIR
 } from "./lib/registry.mjs";
+import { checkServer, problemMessage } from "./lib/server-check.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DAEMON_SCRIPT = join(__dirname, "daemon.mjs");
@@ -115,6 +116,14 @@ function ensureDaemon(root) {
 
   // Stale; clean
   if (st) removeState(hash);
+
+  // 언어 서버가 없으면 데몬이 조용히 죽고 준비 대기 180초를 다 쓴다 - 띄우기 전에 바로 알린다
+  const server = checkServer();
+  if (server.problem === "missing") {
+    console.error(`vbq: ${problemMessage(server)}`);
+    process.exit(3);
+  }
+  if (server.problem === "old") console.error(`vbq: 경고 - ${problemMessage(server)}`);
 
   // LRU evict if max reached
   evictIfNeeded();

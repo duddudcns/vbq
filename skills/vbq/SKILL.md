@@ -11,6 +11,7 @@ A CLI wrapper around `vbnet-ls` (DNAKode VB.NET language server, Roslyn-based) w
 
 ## Execution environment (IMPORTANT — read before running)
 
+- **Language server missing**: `vbq` exits with code 3 and prints the install command (`dotnet tool install -g DNAKode.VbNet.Lsp`) instead of waiting for the daemon timeout. A SessionStart hook also reports a missing or pre-0.1.10 `vbnet-ls`. Offer the command to the user and run it only after they approve; then `vbq status`.
 - **Bash tool**: works as plain `vbq` — Claude Code puts this plugin's `bin/` (with the `vbq` sh shim) on the Bash tool PATH (verified 2026-10-12).
 - **PowerShell tool**: `vbq` is the `bin\vbq.cmd` shim; put a `bin` folder (plugin or a dev clone) on the user PATH once (see `INSTALL.md`). If `vbq` is not found, call the shim by its full path.
 - Sanity check availability with `vbq status` (PowerShell) before a batch of queries. The first query to a *new* solution still pays the 10–30s Roslyn load regardless of shell.

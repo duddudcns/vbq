@@ -71,6 +71,11 @@ child.on("exit", (code, sig) => {
   tlog(`vbnet-ls exited code=${code} sig=${sig}`);
   shutdown(1);
 });
+// 실행 자체가 실패하면(ENOENT 등) exit 없이 error 만 온다 - 처리하지 않으면 데몬이 예외로 죽고 원인이 로그에 안 남는다
+child.on("error", (e) => {
+  tlog(`vbnet-ls spawn error ${e.code || ""} ${e.message}`);
+  shutdown(1);
+});
 
 function sendLsp(method, params) {
   const id = nextId++;
