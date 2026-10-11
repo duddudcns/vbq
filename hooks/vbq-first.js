@@ -43,7 +43,7 @@ process.stdin.on('end', () => {
     if (/vbq/i.test(hay)) process.exit(0);
 
     const msg = '[vbq-first] .vb/.xaml 대상 - 사용여부/참조/정의는 추측 말고 먼저 확정: '
-      + 'vbq sym|refs|def|doc-sym|hover --sln <solution> (PowerShell). 단순 문자열 검색이면 grep 그대로.';
+      + 'vbq sym|refs|def|doc-sym|hover --sln <solution> (PowerShell·Bash 모두 가능). 단순 문자열 검색이면 grep 그대로.';
 
     process.stdout.write(JSON.stringify({
       hookSpecificOutput: {

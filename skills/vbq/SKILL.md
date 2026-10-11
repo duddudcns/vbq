@@ -11,8 +11,8 @@ A CLI wrapper around `vbnet-ls` (DNAKode VB.NET language server, Roslyn-based) w
 
 ## Execution environment (IMPORTANT — read before running)
 
-- **Run vbq via the PowerShell tool.** `vbq` is a Windows `.cmd` shim in this plugin's `bin\` folder (`bin\vbq.cmd`); put that folder on the user PATH once (see `INSTALL.md`) so PowerShell finds it.
-- From Bash/git-bash: the plugin's `bin/` also has a `vbq` sh shim, and Claude Code puts a plugin's `bin/` on the Bash tool PATH. If `vbq` is still `command not found` (exit 127), call the `.cmd` shim by its full path.
+- **Bash tool**: works as plain `vbq` — Claude Code puts this plugin's `bin/` (with the `vbq` sh shim) on the Bash tool PATH (verified 2026-10-12).
+- **PowerShell tool**: `vbq` is the `bin\vbq.cmd` shim; put a `bin` folder (plugin or a dev clone) on the user PATH once (see `INSTALL.md`). If `vbq` is not found, call the shim by its full path.
 - Sanity check availability with `vbq status` (PowerShell) before a batch of queries. The first query to a *new* solution still pays the 10–30s Roslyn load regardless of shell.
 - **`vbq logs … --tail N` trips the main-agent code-gate** (`block-main-code-reads.js` reads `--tail` + a project path as a "code-output command" — false positive). Don't fight it: run `logs` from a **subagent** (codebase-explorer/error-investigator have Bash), calling vbq by full path. `status`/`kill`/`sym`/`refs`/… have no output-token and run fine from the main agent. See Gotchas #5.
 
