@@ -3,12 +3,12 @@
 // 플러그인 경로에는 버전이 들어 있어(…\cache\<마켓>\vbq\<버전>) 업데이트마다 바뀌므로,
 // 실행할 때마다 설치된 vbq 플러그인을 찾아 그 vbq.mjs 를 띄운다. 이 파일은 플러그인에 의존하지 않는다.
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync, readdirSync, realpathSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { homedir } from "node:os";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
-export const LAUNCHER_VERSION = 1;
+export const LAUNCHER_VERSION = 2;
 
 const parts = (v) => v.split(/[.-]/).map((x) => parseInt(x, 10) || 0);
 function versionLess(a, b) {
@@ -19,10 +19,23 @@ function versionLess(a, b) {
   return false;
 }
 
+// Claude 설정 폴더: 환경변수 > setup 이 런처 옆에 적어 둔 값 > ~/.claude
+// (CLAUDE_CONFIG_DIR 은 Claude Code 안에서만 잡혀 있어서, 밖에서 쓰도록 setup 때 저장해 둔다)
+export function defaultConfigDir(here = dirname(fileURLToPath(import.meta.url))) {
+  if (process.env.CLAUDE_CONFIG_DIR) return process.env.CLAUDE_CONFIG_DIR;
+  try {
+    const saved = JSON.parse(readFileSync(join(here, "vbq-launch.json"), "utf8")).configDir;
+    if (saved) return saved;
+  } catch {
+    // 저장된 값이 없으면 기본 위치
+  }
+  return join(homedir(), ".claude");
+}
+
 // 설치된 vbq 플러그인 폴더(vbq.mjs 가 있는 곳)를 찾는다. 없으면 null.
-// 1) installed_plugins.json 의 vbq@<마켓> installPath  2) cache/*/vbq/* 중 가장 높은 버전
+// 1) installed_plugins.json 의 vbq@<마켓> installPath (user 범위 우선)  2) cache/*/vbq/* 중 가장 높은 버전
 export function resolvePluginRoot({
-  configDir = process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"),
+  configDir = defaultConfigDir(),
   exists = existsSync,
   readText = (p) => readFileSync(p, "utf8"),
   listDir = (p) => readdirSync(p),
@@ -37,7 +50,9 @@ export function resolvePluginRoot({
         if (e && e.installPath && exists(join(e.installPath, "vbq.mjs"))) hits.push(e);
       }
     }
-    hits.sort((a, b) => String(b.lastUpdated || "").localeCompare(String(a.lastUpdated || "")));
+    // 다른 프로젝트의 project/local 범위 설치보다 user 범위를 먼저, 그 안에서는 최근 것
+    const rank = (e) => (e.scope === "user" ? 0 : 1);
+    hits.sort((a, b) => rank(a) - rank(b) || String(b.lastUpdated || "").localeCompare(String(a.lastUpdated || "")));
     if (hits.length) return hits[0].installPath;
   } catch {
     // 목록 파일이 없거나 깨졌으면 아래 캐시 폴더 탐색으로 넘어간다
@@ -72,4 +87,14 @@ function main() {
   process.exit(r.status ?? 1);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
+// 직접 실행됐을 때만 main. Node 는 메인 모듈 경로를 실제 경로로 바꾸므로(junction·symlink 를 거친 경우)
+// 양쪽을 realpath 로 맞춰 비교한다 - 안 그러면 아무것도 안 하고 exit 0 으로 끝난다.
+function isMain() {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(process.argv[1]).toLowerCase() === realpathSync(fileURLToPath(import.meta.url)).toLowerCase();
+  } catch {
+    return false;
+  }
+}
+if (isMain()) main();

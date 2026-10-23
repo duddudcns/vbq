@@ -31,7 +31,8 @@ A CLI wrapper around `vbnet-ls` (DNAKode VB.NET language server, Roslyn-based) w
 | 질의가 `pipe timeout` / 응답 없음 | `vbq kill <root>` 후 다시 질의(자동 재기동). 반복되면 서브에이전트로 `vbq logs <root> --tail 200` |
 | 솔루션 구성을 바꿨는데(프로젝트 추가 등) 결과가 옛것 | `vbq kill <root>` — 데몬은 뜰 때 한 번 솔루션을 읽는다 |
 | 메모리가 아까움 | 그냥 둔다. 30분 쉬면 스스로 끝나고, 4번째 솔루션을 열면 가장 오래 쉰 것을 내린다(최대 3개, 각 약 250MB) |
-| 제거 | `claude plugin uninstall vbq@duddudcns`, `~/.local/bin` 의 `vbq.cmd`·`vbq`·`vbq-launch.mjs` 삭제, 필요하면 `dotnet tool uninstall -g DNAKode.VbNet.Lsp` |
+| 제거 | `claude plugin uninstall vbq@duddudcns`, `~/.local/bin` 의 `vbq.cmd`·`vbq`·`vbq-launch.mjs`·`vbq-launch.json` 삭제, 필요하면 `dotnet tool uninstall -g DNAKode.VbNet.Lsp`. `~/.local/bin` PATH 항목은 다른 도구도 쓰는 폴더라 그대로 둔다 |
+| Claude 설정 폴더를 옮긴 PC(`CLAUDE_CONFIG_DIR`) | 그 환경을 잡은 상태에서 `vbq setup` — 설정 폴더 위치를 `~/.local/bin\vbq-launch.json` 에 적어 두어 Claude 밖에서도 찾는다 |
 
 - `vbq kill` 은 위 경우에만 쓴다. 습관적으로 죽이면 다음 질의마다 10–30초 콜드 로드를 다시 한다.
 - 다른 `vbq.cmd` 가 PATH 앞쪽에 있으면(예: 예전에 복사해 둔 `%USERPROFILE%\vbq\bin`) `doctor` 가 알려 준다. 그 항목을 PATH 에서 빼야 런처가 쓰인다.

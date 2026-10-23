@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, copyFileSync, symlinkSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { pathHas, pathAppend, launcherVersionOf, runSetup, launcherStatus } from "../lib/setup.mjs";
@@ -15,12 +16,39 @@ function plugin(cfg, market, ver) {
   return dir;
 }
 
-test("PATH membership ignores case, trailing slash and %VAR%", () => {
+test("PATH membership ignores case, trailing slash, quotes and %VAR%", () => {
   const env = { USERPROFILE: "C:\\Users\\me" };
-  assert.equal(pathHas("C:\\a;c:\\users\\ME\\.local\\bin\\;D:\\b", "C:\\Users\\me\\.local\\bin", env), true);
-  assert.equal(pathHas("%USERPROFILE%\\.local\\bin", "C:\\Users\\me\\.local\\bin", env), true);
-  assert.equal(pathHas("C:\\Users\\me\\.local\\binx", "C:\\Users\\me\\.local\\bin", env), false);
-  assert.equal(pathHas("", "C:\\x", env), false);
+  const dir = "C:\\Users\\me\\.local\\bin";
+  assert.equal(pathHas("C:\\a;c:\\users\\ME\\.local\\bin\\;D:\\b", dir, { env }), true);
+  assert.equal(pathHas("%USERPROFILE%\\.local\\bin", dir, { env }), true);
+  assert.equal(pathHas('C:\\a;"C:\\Users\\me\\.local\\bin"', dir, { env }), true);
+  assert.equal(pathHas("C:\\Users\\me\\.local\\binx", dir, { env }), false);
+  assert.equal(pathHas("", "C:\\x", { env }), false);
+});
+
+test("a %VAR% entry in a REG_SZ PATH does not count (Windows does not expand it)", () => {
+  const env = { USERPROFILE: "C:\\Users\\me" };
+  assert.equal(pathHas("%USERPROFILE%\\.local\\bin", "C:\\Users\\me\\.local\\bin", { env, expand: false }), false);
+});
+
+test("launcher started through a junction still runs and passes the exit code", { skip: process.platform !== "win32" }, () => {
+  const base = tmp();
+  try {
+    const cfg = join(base, "cfg");
+    const dir = plugin(cfg, "m", "1.0.0");
+    writeFileSync(join(dir, "vbq.mjs"), 'console.log("ran", process.argv.slice(2).join(" ")); process.exit(7);\n');
+    const real = join(base, "real");
+    mkdirSync(real);
+    copyFileSync(new URL("../bin/vbq-launch.mjs", import.meta.url), join(real, "vbq-launch.mjs"));
+    writeFileSync(join(real, "vbq-launch.json"), JSON.stringify({ configDir: cfg }));
+    const junc = join(base, "junc");
+    symlinkSync(real, junc, "junction");
+    const env = { ...process.env };
+    delete env.CLAUDE_CONFIG_DIR;
+    const r = spawnSync(process.execPath, [join(junc, "vbq-launch.mjs"), "status", "--json"], { encoding: "utf8", env });
+    assert.equal(r.stdout.trim(), "ran status --json");
+    assert.equal(r.status, 7);
+  } finally { rmSync(base, { recursive: true, force: true }); }
 });
 
 test("PATH append does not leave double semicolons", () => {
@@ -75,7 +103,11 @@ test("setup writes launcher and shims, is idempotent, and refuses a foreign vbq.
     assert.ok(again.every((l) => l.startsWith("=")), again.join("\n"));
 
     writeFileSync(join(st.dir, "vbq.cmd"), "@echo other tool\r\n");
+    writeFileSync(join(st.dir, "vbq"), "#!/bin/sh\necho other\n");
+    rmSync(join(st.dir, "vbq-launch.mjs"));
     assert.throws(() => runSetup({ home, updatePath: false }), /--force/);
+    // 검사에서 막히면 아무것도 쓰지 않는다
+    assert.equal(launcherStatus(home).have, null);
     runSetup({ home, updatePath: false, force: true });
     assert.match(readFileSync(join(st.dir, "vbq.cmd"), "utf8"), /vbq-launch\.mjs/);
   } finally { rmSync(home, { recursive: true, force: true }); }
