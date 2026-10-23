@@ -1,6 +1,6 @@
 {
   "name": "vbq",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "CLI for VB.NET LSP queries (vbnet-ls) with per-root daemon and idle auto-shutdown.",
   "type": "module",
   "private": true,
