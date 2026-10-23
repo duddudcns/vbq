@@ -4,6 +4,16 @@
 > 실행하는 CLI 다. Roslyn 기반 언어 서버 `vbnet-ls` 를 솔루션 루트별 데몬으로 감싸 동작한다.
 > 이 문서는 현재 동작 중인 PC와 동일한 환경을 **새 PC에 재현**하기 위한 절차다.
 
+> ✅ **권장: Claude Code 플러그인으로 설치** — 아래 Step 3·4(폴더 복사·PATH 등록)를 대신한다.
+>
+> 1. Step 1·2 로 Node.js, .NET 10 SDK, `vbnet-ls` 설치
+> 2. `claude plugin install vbq@duddudcns`
+> 3. `vbq setup` (Claude Code Bash 도구 또는 플러그인 `bin\vbq.cmd` 풀패스로 한 번) — `%USERPROFILE%\.local\bin` 에 런처(`vbq.cmd`·`vbq`·`vbq-launch.mjs`)를 두고, 그 폴더가 사용자 PATH 에 없으면 추가한다
+> 4. 새 터미널에서 `vbq doctor` → "모두 정상"
+>
+> 플러그인 폴더(`…\plugins\cache\<마켓>\vbq\<버전>\bin`)를 PATH 에 직접 넣지 않는다. 버전마다 폴더가 바뀌어 업데이트 뒤 끊긴다. 런처는 실행할 때마다 `installed_plugins.json` 에서 현재 설치 경로를 찾는다.
+> 설치 뒤 운영(업데이트·데몬 관리·문제 해결)은 `skills/vbq/SKILL.md` 의 "운영 가이드" 절을 따른다.
+
 ---
 
 ## 0. 한눈에 보는 구성
@@ -85,7 +95,7 @@ dotnet tool install -g dnakode.vbnet.lsp
 (Get-Command vbnet-ls).Source   # → %USERPROFILE%\.dotnet\tools\vbnet-ls.exe
 ```
 
-### Step 3 — vbq 파일 복사
+### Step 3 — vbq 파일 복사 (플러그인을 쓰지 않을 때만)
 
 `vbq` 폴더 전체를 대상 PC로 복사한다. 위치는 어디든 무방하다(외부 의존성이 없어 자기완결적).
 권장 위치는 현 PC와 동일한 `%USERPROFILE%\vbq` 다.
@@ -112,7 +122,7 @@ vbq\
 Copy-Item -Recurse "<원본 경로>\vbq" "$env:USERPROFILE\vbq"
 ```
 
-### Step 4 — vbq 를 PATH 에 등록
+### Step 4 — vbq 를 PATH 에 등록 (플러그인을 쓰지 않을 때만)
 
 `bin` 폴더(= `vbq.cmd` 위치)를 사용자 PATH 에 추가한다.
 

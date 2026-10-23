@@ -1,6 +1,6 @@
 ---
 name: vbq
-description: VB.NET semantic code queries (references, definitions, symbols, hover, document outline) across a full .sln. Use INSTEAD OF grep/Read whenever the target is a .vb file or a .vbproj in a Roslyn-loadable solution. First call per solution takes ~10–30s (MSBuild load); subsequent calls <1s. Per-root persistent daemon, 30min idle auto-shutdown, max 3 concurrent solutions (LRU).
+description: VB.NET semantic code queries (references, definitions, symbols, hover, document outline) across a full .sln. Use INSTEAD OF grep/Read whenever the target is a .vb file or a .vbproj in a Roslyn-loadable solution. First call per solution takes ~10–30s (MSBuild load); subsequent calls <1s. Per-root persistent daemon, 30min idle auto-shutdown, max 3 concurrent solutions (LRU). Also use it when the user asks how to install, update, run or troubleshoot vbq itself (vbq setup / vbq doctor, PATH for PowerShell·Codex, daemon management).
 ---
 
 # vbq — VB.NET LSP CLI
@@ -13,9 +13,28 @@ A CLI wrapper around `vbnet-ls` (DNAKode VB.NET language server, Roslyn-based) w
 
 - **Language server missing**: `vbq` exits with code 3 and prints the install command (`dotnet tool install -g DNAKode.VbNet.Lsp`) instead of waiting for the daemon timeout. A SessionStart hook also reports a missing or pre-0.1.10 `vbnet-ls`. Offer the command to the user and run it only after they approve; then `vbq status`.
 - **Bash tool**: works as plain `vbq` — Claude Code puts this plugin's `bin/` (with the `vbq` sh shim) on the Bash tool PATH (verified 2026-10-12).
-- **PowerShell tool**: `vbq` is the `bin\vbq.cmd` shim; put a `bin` folder (plugin or a dev clone) on the user PATH once (see `INSTALL.md`). If `vbq` is not found, call the shim by its full path.
-- Sanity check availability with `vbq status` (PowerShell) before a batch of queries. The first query to a *new* solution still pays the 10–30s Roslyn load regardless of shell.
+- **PowerShell tool, Codex, plain terminals**: these do not get the plugin `bin/` on PATH. `vbq setup` (run once via the Bash tool, after the user agrees) installs a fixed-path launcher in `~/.local/bin` and adds that folder to the user PATH if it is missing. The launcher finds the installed plugin on every call, so plugin updates never break it. Do **not** put the versioned plugin folder (`…\plugins\cache\…\vbq\<version>\bin`) on PATH — it disappears on the next update. Terminals and Codex opened before `setup` must be reopened.
+- Sanity check with `vbq doctor` (checks everything and prints the fix command for each problem) or `vbq status` before a batch of queries. The first query to a *new* solution still pays the 10–30s Roslyn load regardless of shell.
 - **`vbq logs … --tail N` trips the main-agent code-gate** (`block-main-code-reads.js` reads `--tail` + a project path as a "code-output command" — false positive). Don't fight it: run `logs` from a **subagent** (codebase-explorer/error-investigator have Bash), calling vbq by full path. `status`/`kill`/`sym`/`refs`/… have no output-token and run fine from the main agent. See Gotchas #5.
+
+## 운영 가이드 (설치·업데이트·데몬 관리)
+
+사용자가 vbq 설치·업데이트·문제를 물으면 이 표대로 안내한다. PC 에 무언가를 설치하거나 PATH 를 바꾸는 명령은 사용자 승인 뒤에 실행한다.
+
+| 상황 | 할 일 |
+|---|---|
+| 새 PC / 처음 설치 | 1) `dotnet tool install -g DNAKode.VbNet.Lsp` (.NET 10 SDK 필요) 2) `claude plugin install vbq@duddudcns` 3) `vbq setup` 4) `vbq doctor` 가 "모두 정상" |
+| 뭔가 안 될 때 첫 단계 | `vbq doctor` — ✗ 줄마다 고칠 명령(→)을 알려 준다. 고친 뒤 다시 `vbq doctor` |
+| vbq 플러그인 업데이트 뒤 | 할 일 없음. 런처가 새 버전을 스스로 찾는다. `doctor` 가 "런처가 오래됨"이라 하면 `vbq setup` 한 번 |
+| vbnet-ls 업데이트 | `dotnet tool update -g DNAKode.VbNet.Lsp` → `vbq kill all` (떠 있던 데몬은 옛 서버를 쥐고 있음). 다음 질의는 10–30초 걸려 새로 뜬다 |
+| PowerShell·Codex·터미널에서 `vbq` 를 못 찾음 | `vbq setup` 후 그 창을 다시 연다. `doctor` 의 "새 셸의 vbq →" 줄이 `~/.local/bin\vbq.cmd` 여야 한다 |
+| 질의가 `pipe timeout` / 응답 없음 | `vbq kill <root>` 후 다시 질의(자동 재기동). 반복되면 서브에이전트로 `vbq logs <root> --tail 200` |
+| 솔루션 구성을 바꿨는데(프로젝트 추가 등) 결과가 옛것 | `vbq kill <root>` — 데몬은 뜰 때 한 번 솔루션을 읽는다 |
+| 메모리가 아까움 | 그냥 둔다. 30분 쉬면 스스로 끝나고, 4번째 솔루션을 열면 가장 오래 쉰 것을 내린다(최대 3개, 각 약 250MB) |
+| 제거 | `claude plugin uninstall vbq@duddudcns`, `~/.local/bin` 의 `vbq.cmd`·`vbq`·`vbq-launch.mjs` 삭제, 필요하면 `dotnet tool uninstall -g DNAKode.VbNet.Lsp` |
+
+- `vbq kill` 은 위 경우에만 쓴다. 습관적으로 죽이면 다음 질의마다 10–30초 콜드 로드를 다시 한다.
+- 다른 `vbq.cmd` 가 PATH 앞쪽에 있으면(예: 예전에 복사해 둔 `%USERPROFILE%\vbq\bin`) `doctor` 가 알려 준다. 그 항목을 PATH 에서 빼야 런처가 쓰인다.
 
 ## When to invoke this skill
 
@@ -40,6 +59,8 @@ vbq refs-at <file> <L> <C> # references at a specific 0-based position
 vbq doc-sym <file>         # documentSymbol tree for one file
 vbq hover <file> <L> <C>   # hover info (type, signature)
 vbq status                 # list live daemons (pid, root, idle time, ready)
+vbq doctor                 # check Node/.NET SDK/vbnet-ls/launcher/PATH/daemons, print fixes
+vbq setup [--force]        # install the fixed-path launcher in ~/.local/bin (+ user PATH)
 vbq kill <root|hash|all>   # stop daemon(s)
 vbq logs <root> --tail 100 # daemon stderr + lifecycle log
 
@@ -212,7 +233,8 @@ Paths are relative to the plugin root (GitHub `duddudcns/vbq`):
 - Daemon: `daemon.mjs`
 - Registry helpers: `lib/registry.mjs`
 - LSP framer: `lib/lsp-frame.mjs`
-- PATH shims: `bin/vbq.cmd` (PowerShell/cmd), `bin/vbq` (git-bash)
+- PATH shims: `bin/vbq.cmd` (PowerShell/cmd), `bin/vbq` (git-bash) — used inside Claude Code
+- Fixed-path launcher: `bin/vbq-launch.mjs`, copied with its own shims to `~/.local/bin` by `vbq setup` (`lib/setup.mjs`) — used everywhere else
 - Reminder hook: `hooks/vbq-first.js` (PreToolUse on Read/Grep/Glob/Bash/PowerShell with a `.vb`/`.xaml` target)
 
 The underlying language server is `vbnet-ls` (DNAKode.VbNet.Lsp, 0.1.10 or later; 0.1.16 verified 2026-10-12), installed as a global dotnet tool. 0.1.9 and earlier rewrite queried files with a double BOM.
