@@ -29,7 +29,7 @@ A CLI wrapper around `vbnet-ls` (DNAKode VB.NET language server, Roslyn-based) w
 | vbnet-ls 업데이트 | `dotnet tool update -g DNAKode.VbNet.Lsp` → `vbq kill all` (떠 있던 데몬은 옛 서버를 쥐고 있음). 다음 질의는 10–30초 걸려 새로 뜬다 |
 | PowerShell·Codex·터미널에서 `vbq` 를 못 찾음 | `vbq setup` 후 그 창을 다시 연다. `doctor` 의 "새 셸의 vbq →" 줄이 `~/.local/bin\vbq.cmd` 여야 한다 |
 | 질의가 `pipe timeout` / 응답 없음 | `vbq kill <root>` 후 다시 질의(자동 재기동). 반복되면 서브에이전트로 `vbq logs <root> --tail 200` |
-| 솔루션 구성을 바꿨는데(프로젝트 추가 등) 결과가 옛것 | `vbq kill <root>` — 데몬은 뜰 때 한 번 솔루션을 읽는다 |
+| 솔루션 구성·파일을 고쳤는데(프로젝트 추가, 이름 변경 등) 결과가 옛것 | `vbq kill <root>` — 데몬은 뜰 때 솔루션을, 처음 질의할 때 각 파일을 한 번만 읽는다. 이름 변경 뒤 "남은 곳 없음" 확인은 kill 후 재질의 + grep 으로 겹쳐 본다 |
 | 메모리가 아까움 | 그냥 둔다. 30분 쉬면 스스로 끝나고, 4번째 솔루션을 열면 가장 오래 쉰 것을 내린다(최대 3개, 각 약 250MB) |
 | 제거 | `claude plugin uninstall vbq@duddudcns`, `~/.local/bin` 의 `vbq.cmd`·`vbq`·`vbq-launch.mjs`·`vbq-launch.json` 삭제, 필요하면 `dotnet tool uninstall -g DNAKode.VbNet.Lsp`. `~/.local/bin` PATH 항목은 다른 도구도 쓰는 폴더라 그대로 둔다 |
 | Claude 설정 폴더를 옮긴 PC(`CLAUDE_CONFIG_DIR`) | 그 환경을 잡은 상태에서 `vbq setup` — 설정 폴더 위치를 `~/.local/bin\vbq-launch.json` 에 적어 두어 Claude 밖에서도 찾는다 |
@@ -162,7 +162,7 @@ Useful when iterating in a shell where you've already `cd`'d to the solution fol
 - `def <name>` = **정의 위치 조회**. 이름을 정확히 알 때. 동명이인이면 정의를 다 보여준다.
 - 워크플로: 모르면 `sym` → 정확한 이름 확보 → `def`/`refs`.
 
-### 4. `--json`은 "전부 보기" 스위치
+### 4. `--json`은 기계 파싱용
 - `--json`을 주면 후보별 정의·참조 위치가 원본 LSP 형식(0-based 좌표)으로 나온다. 기계 파싱용. 텍스트 출력과 같은 데이터라 두 번째 이후 후보가 덜 나오는 문제는 그대로다 — 그 후보는 `refs-at` 으로 확인한다.
 
 ### 5. `logs`는 메인 에이전트 게이트에 막힌다
@@ -214,7 +214,7 @@ Set realistic Bash `timeout` (e.g. 180000ms) for the first call to a new root.
 | `daemon not ready (timeout)` | Solution load >180s or MSBuild crash | `vbq logs <root> --tail 200`; if stack trace → check VS install (VS18 must be hidden, VS2022 17.x present) |
 | `pipe timeout` on cached call | Daemon died silently | `vbq kill <root>`, then re-run query (it will respawn) |
 | `(no matches)` on a name you know exists | Symbol filtered by accessibility/case | Try `vbq sym <Lowercase>` or `--limit 0` and look at full match list |
-| `references` returns only the definition | File didn't get `didOpen`'d, or symbol genuinely unused | Pass `--json` and check; for whole-solution refs use `vbq refs` (name-based, not position-based) |
+| `references` returns only the definition | File didn't get `didOpen`'d, or symbol genuinely unused | If it came from a 2nd+ candidate block of `vbq refs`, re-run that candidate with `vbq refs-at` (Gotchas #2); otherwise `vbq kill <root>` and retry, and confirm absence with a grep before concluding "unused" |
 
 ## Doing NOT — anti-patterns
 
