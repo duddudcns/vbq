@@ -109,6 +109,14 @@ test("setup writes launcher and shims, is idempotent, and refuses a foreign vbq.
     // 검사에서 막히면 아무것도 쓰지 않는다
     assert.equal(launcherStatus(home).have, null);
     runSetup({ home, updatePath: false, force: true });
+
+    // 설정 폴더 저장값은 CLAUDE_CONFIG_DIR 없이 다시 setup 해도 남는다
+    writeFileSync(join(st.dir, "vbq-launch.json"), JSON.stringify({ configDir: "D:\\moved\\claude" }, null, 2) + "\n");
+    const saved = process.env.CLAUDE_CONFIG_DIR;
+    delete process.env.CLAUDE_CONFIG_DIR;
+    try { runSetup({ home, updatePath: false }); }
+    finally { if (saved !== undefined) process.env.CLAUDE_CONFIG_DIR = saved; }
+    assert.equal(JSON.parse(readFileSync(join(st.dir, "vbq-launch.json"), "utf8")).configDir, "D:\\moved\\claude");
     assert.match(readFileSync(join(st.dir, "vbq.cmd"), "utf8"), /vbq-launch\.mjs/);
   } finally { rmSync(home, { recursive: true, force: true }); }
 });

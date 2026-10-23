@@ -77,12 +77,16 @@ export function resolvePluginRoot({
 }
 
 function main() {
-  const root = resolvePluginRoot();
+  const configDir = defaultConfigDir();
+  const root = resolvePluginRoot({ configDir });
   if (!root) {
-    console.error("vbq: 설치된 vbq 플러그인을 찾지 못했습니다. 설치: claude plugin install vbq@duddudcns");
+    console.error(`vbq: 설치된 vbq 플러그인을 찾지 못했습니다(설정 폴더 ${configDir}). 설치: claude plugin install vbq@duddudcns`);
     process.exit(4);
   }
-  const r = spawnSync(process.execPath, [join(root, "vbq.mjs"), ...process.argv.slice(2)], { stdio: "inherit" });
+  // 찾은 설정 폴더를 넘겨, 그 아래에서 vbq setup 을 다시 해도 저장된 위치가 ~/.claude 로 바뀌지 않게 한다
+  const r = spawnSync(process.execPath, [join(root, "vbq.mjs"), ...process.argv.slice(2)], {
+    stdio: "inherit", env: { ...process.env, CLAUDE_CONFIG_DIR: configDir },
+  });
   if (r.error) { console.error(`vbq: ${r.error.message}`); process.exit(1); }
   process.exit(r.status ?? 1);
 }
