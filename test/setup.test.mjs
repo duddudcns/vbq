@@ -36,7 +36,7 @@ test("launcher started through a junction still runs and passes the exit code", 
   try {
     const cfg = join(base, "cfg");
     const dir = plugin(cfg, "m", "1.0.0");
-    writeFileSync(join(dir, "vbq.mjs"), 'console.log("ran", process.argv.slice(2).join(" ")); process.exit(7);\n');
+    writeFileSync(join(dir, "vbq.mjs"), 'console.log("ran", process.argv.slice(2).join(" ")); console.log(process.env.CLAUDE_CONFIG_DIR); process.exit(7);\n');
     const real = join(base, "real");
     mkdirSync(real);
     copyFileSync(new URL("../bin/vbq-launch.mjs", import.meta.url), join(real, "vbq-launch.mjs"));
@@ -46,7 +46,7 @@ test("launcher started through a junction still runs and passes the exit code", 
     const env = { ...process.env };
     delete env.CLAUDE_CONFIG_DIR;
     const r = spawnSync(process.execPath, [join(junc, "vbq-launch.mjs"), "status", "--json"], { encoding: "utf8", env });
-    assert.equal(r.stdout.trim(), "ran status --json");
+    assert.deepEqual(r.stdout.trim().split(/\r?\n/), ["ran status --json", cfg]);
     assert.equal(r.status, 7);
   } finally { rmSync(base, { recursive: true, force: true }); }
 });
