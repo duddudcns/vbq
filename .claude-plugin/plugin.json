@@ -1,6 +1,6 @@
 {
   "name": "vbq",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "VB.NET 시맨틱 코드 질의 CLI(정의·참조·심볼·hover·문서 개요). vbnet-ls(NuGet DNAKode.VbNet.Lsp)를 솔루션별 데몬으로 감싼다. vbq 스킬과 .vb/.xaml 대상 grep/Read 때 vbq 를 먼저 권하는 훅 포함. 서버는 따로 설치: dotnet tool install -g DNAKode.VbNet.Lsp",
   "author": { "name": "duddudcns" },
   "repository": "https://github.com/duddudcns/vbq"

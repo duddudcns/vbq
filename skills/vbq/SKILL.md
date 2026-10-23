@@ -78,7 +78,7 @@ vbq logs <root> --tail 100 # daemon stderr + lifecycle log
 | 알고 싶은 것 (한국어 의도) | 명령 | 메모 |
 |---|---|---|
 | "X가 **어디 정의**됐어?" | `vbq def X` | 정의 위치만. 동명이인 있으면 여러 줄. |
-| "X **누가 호출**해 / 어디서 써?" | `vbq refs X` | 이름 기반, 솔루션 전체. 동명이인이면 **첫 후보만** 보여줌 → 전부는 `--json`. |
+| "X **누가 호출**해 / 어디서 써?" | `vbq refs X` | 이름 기반, 솔루션 전체. 동명이인이면 **후보마다** 묶어서 모두 보여줌 → 하나만은 `refs-at`. |
 | "오버로드/동명이인 중 **바로 이** 심볼의 참조만" | `vbq refs-at <file> <L> <C>` | 위치(커서) 기반이라 정확히 한 심볼로 고정. **L/C는 0-based**. |
 | "이름이 가물가물 — X **비슷한** 거 찾아줘" | `vbq sym <부분문자열>` | 퍼지/부분일치 검색(발견용). 너무 많으면 `--limit N`. |
 | "이 **파일에 뭐** 들어있어 / 메서드 목록" | `vbq doc-sym <file>` | 파일 구조 아웃라인(클래스→멤버), 1-based 표시. |
@@ -153,7 +153,7 @@ Useful when iterating in a shell where you've already `cd`'d to the solution fol
 - 검증례: `ViewerMain.FileOpen`이 `refs`에선 `141:17` → `vbq hover … 140 16` → `Private Sub FileOpen(path As String, …)` 정상.
 
 ### 2. `refs` vs `refs-at`
-- `refs X` = **이름 기반**. 같은 이름이 여러 클래스에 있으면(예: `FileOpen`이 3개 클래스) **첫 후보만** 골라 그 참조를 보여주고 `--json`을 안내한다. 빠르지만 동명이인에 약함.
+- `refs X` = **이름 기반**. 같은 이름이 여러 클래스에 있으면(예: `FileOpen`이 3개 클래스) **후보마다** `# 이름 [defined 파일:줄:열]` 머리줄 아래에 그 참조를 묶어 모두 보여준다(stderr 에 후보 수 안내). 원하는 후보의 묶음만 골라 읽거나, 한 심볼로 못박으려면 `refs-at`.
 - `refs-at <file> <L> <C>` = **위치 기반**. 커서가 놓인 **정확히 그 심볼**의 참조만 — 오버로드/동명이인을 확실히 가른다. 단 L/C는 0-based.
 - 동명이인일 때: `sym`/`doc-sym`으로 원하는 정의의 정확한 위치를 찾고 → 그 위치로 `refs-at`.
 
@@ -163,7 +163,7 @@ Useful when iterating in a shell where you've already `cd`'d to the solution fol
 - 워크플로: 모르면 `sym` → 정확한 이름 확보 → `def`/`refs`.
 
 ### 4. `--json`은 "전부 보기" 스위치
-- `refs`가 다중후보 중 하나만 보여줄 때 `--json`을 주면 **모든 후보/위치**가 나온다(0-based 좌표). 기계 파싱에도 사용.
+- `--json`을 주면 후보별 정의·참조 위치가 원본 LSP 형식(0-based 좌표)으로 나온다. 기계 파싱용.
 
 ### 5. `logs`는 메인 에이전트 게이트에 막힌다
 - `vbq logs … --tail N`은 `block-main-code-reads.js`가 "출력 명령 + 프로젝트 경로"로 오인해 막는다(false-positive).

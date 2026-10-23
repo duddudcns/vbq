@@ -237,7 +237,7 @@ async function cmdRefs({ pos, flags }) {
   const pick = exact.length ? exact : matches;
   if (!pick.length) { console.error(`vbq: no symbol matches '${symbol}'`); process.exit(1); }
   if (pick.length > 1 && !flags.json) {
-    console.error(`vbq: ${pick.length} candidates for '${symbol}'. Using first; pass --json for all locations.`);
+    console.error(`vbq: ${pick.length} candidates for '${symbol}' - references are grouped per candidate below (# name [defined …]). Use refs-at to pin one.`);
   }
   const all = [];
   for (const m of pick) {
